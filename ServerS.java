@@ -14,6 +14,7 @@ public class ServerS
   static private final Charset charset = Charset.forName("UTF8");
   static private final CharsetDecoder decoder = charset.newDecoder();
   static private final CharsetEncoder encoder = charset.newEncoder();
+  static private final ByteBuffer newline = ByteBuffer.allocate(1).put((byte) 0x0A).flip();
 
 
   static public void main( String args[] ) throws Exception {
@@ -122,6 +123,25 @@ public class ServerS
     }
   }
 
+  static private boolean isCommand(String input){
+    return (input.charAt(0) == '/' && input.charAt(1) != '/');
+  }
+
+  static private void sendMessage(String message, SelectionKey receiverKey) throws IOException{
+    ByteBuffer messageBuf = encoder.encode(CharBuffer.wrap(message.toCharArray())); // Turns message from string to byte buffer
+    sendMessage(messageBuf, receiverKey);
+  }
+
+  static private void sendMessage(ByteBuffer messageBuf, SelectionKey receiverKey) throws IOException{
+    SocketChannel sc = (SocketChannel) receiverKey.channel();
+    sc.write(messageBuf);
+    messageBuf.rewind();
+    sc.write(newline);
+    newline.rewind();
+  }
+
+
+
 
   // Reads the message and send it to all sockets
   static private boolean processInput( SocketChannel sc,SelectionKey senderKey, Selector selector) throws IOException {
@@ -134,17 +154,42 @@ public class ServerS
     if (buffer.limit()==0) {
       return false;
     }
-    // if no nickname has been provided assumme message is nickname
-    if (senderKey.attachment() == null){
-      String nickname = decoder.decode(buffer).toString().strip();
-      System.out.println(nickname);
-      senderKey.attach(nickname); // Attaches it to Key
+    String input = decoder.decode(buffer).toString();
+    buffer.rewind();
+    if (isCommand(input)){
+      String[] command = input.split("[ \n]");
+      switch (command[0]){
+        case "/nick":
+          if(command.length < 2){
+            sendMessage("ERROR", senderKey);
+          }
+          else {
+          //todo check if name is available
+          senderKey.attach(command[1]);
+          //todo send nickname to users of a room
+          sendMessage("OK", senderKey);
+          }
+          break;
+        case "/join":
+          //todo
+          break;
+        case "/leave":
+          //todo
+          break;
+        case "/bye":
+          //todo
+          sendMessage("BYE", senderKey);
+          break;
+        default:
+          sendMessage("ERROR", senderKey);
+          break; 
+      }
     }
-    else{ 
+    else {
     // Buffer is message so we rebroadcast it
     String nickname = senderKey.attachment().toString();
     String content = decoder.decode(buffer).toString();
-    String message = nickname + ": " + content;
+    String message = "MESSAGE " + nickname + " " + content;
 
     ByteBuffer messageBuf = encoder.encode(CharBuffer.wrap(message.toCharArray())); // Turns message from string to byte buffer
     Set<SelectionKey> keys = selector.selectedKeys();
@@ -154,11 +199,8 @@ public class ServerS
       SelectionKey key = it.next();
       // Check if Selected channels is accepting writes
       if (key.isWritable()) {
-        System.out.println("Sending message to"+ key.attachment());
-        System.out.println("Some key");
-        SocketChannel writeSc = (SocketChannel)key.channel();
-        writeSc.write(messageBuf);
-        messageBuf.rewind();
+        System.out.println("Sending message to "+ key.attachment());
+        sendMessage(messageBuf, key);
       } else System.out.println("Socket not Writable");
     }
     System.out.println("fim");
