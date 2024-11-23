@@ -1,210 +1,321 @@
-import java.io.*;
+import java.io.IOException;
 import java.net.*;
 import java.nio.*;
 import java.nio.channels.*;
 import java.nio.charset.*;
 import java.util.*;
+import java.util.stream.Collectors;
 
-public class ChatServer
-{
-  // A pre-allocated buffer for the received data
-  static private final ByteBuffer buffer = ByteBuffer.allocate( 16384 );
+public class ChatServer {
 
-  // Decoder for incoming text -- assume UTF-8
-  static private final Charset charset = Charset.forName("UTF8");
-  static private final CharsetDecoder decoder = charset.newDecoder();
-  static private final CharsetEncoder encoder = charset.newEncoder();
-  static private final ByteBuffer newline = ByteBuffer.allocate(1).put((byte) 0x0A).flip();
+    // A pre-allocated buffer for the received data
+    static private final ByteBuffer buffer = ByteBuffer.allocate(16384);
 
+    // A buffer containing a newline character
+    static private final ByteBuffer newline = ByteBuffer.allocate(1).put((byte) 0x0A).flip();
 
-  static public void main( String args[] ) throws Exception {
-    // Parse port from command line
-    int port = Integer.parseInt( args[0] );
-    
-    try {
-      // Instead of creating a ServerSocket, create a ServerSocketChannel
-      ServerSocketChannel ssc = ServerSocketChannel.open();
+    // Decoder for incoming text -- assume UTF-8
+    static private final Charset charset = Charset.forName("UTF8");
+    static final CharsetDecoder decoder = charset.newDecoder();
+    static final CharsetEncoder encoder = charset.newEncoder();
 
-      // Set it to non-blocking, so we can use select
-      ssc.configureBlocking( false );
+    static public void main(String args[]) {
+        int port = Integer.parseInt(args[0]);
+        new Chat("padrao");
+        try {
+            // Instead of creating a ServerSocket, create a ServerSocketChannel
+            ServerSocketChannel serverSocketChannel = ServerSocketChannel.open();
 
-      // Get the Socket connected to this channel, and bind it to the
-      // listening port
-      ServerSocket ss = ssc.socket();
-      InetSocketAddress isa = new InetSocketAddress( port );
-      ss.bind( isa );
+            // Set it to non-blocking, so we can use select
+            serverSocketChannel.configureBlocking(false);
 
-      // Create a new Selector for selecting
-      Selector selector = Selector.open();
+            // Get the Socket connected to this channel, and bind it to the
+            // listening port
+            ServerSocket ss = serverSocketChannel.socket();
+            InetSocketAddress isa = new InetSocketAddress(port);
+            ss.bind(isa);
 
-      // Register the ServerSocketChannel, so we can listen for incoming
-      // connections
-      ssc.register( selector, SelectionKey.OP_ACCEPT );
-      System.out.println( "Listening on port "+port );
+            // Create a new Selector for selecting
+            Selector selector = Selector.open();
 
-      while (true) {
-        // See if we've had any activity -- either an incoming connection,
-        // or incoming data on an existing connection
-        int num = selector.select();
+            // Register the ServerSocketChannel, so we can listen for incoming
+            // connections
+            serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
+            System.out.println("Listening on port " + port);
 
-        // If we don't have any activity, loop around and wait again
-        if (num == 0) {
-          continue;
-        }
+            while (true) {
+                // See if we've had any activity -- either an incoming connection,
+                // or incoming data on an existing connection
+                int num = selector.select();
 
-        // Get the keys corresponding to the activity that has been
-        // detected, and process them one by one
-        Set<SelectionKey> keys = selector.selectedKeys();
-        Iterator<SelectionKey> it = keys.iterator();
-        while (it.hasNext()) {
-          // Get a key representing one of bits of I/O activity
-          SelectionKey key = it.next();
-
-          // What kind of activity is it?
-          if (key.isAcceptable()) {
-
-            // It's an incoming connection.  Register this socket with
-            // the Selector so we can listen for input on it
-            Socket s = ss.accept();
-            System.out.println( "Got connection from "+s );
-
-            // Make sure to make it non-blocking, so we can use a selector
-            // on it.
-            SocketChannel sc = s.getChannel();
-            sc.configureBlocking( false );
-
-            // Register it with the selector, for reading
-            sc.register( selector, SelectionKey.OP_READ | SelectionKey.OP_WRITE);
-
-          } else if (key.isReadable()) {
-
-            SocketChannel sc = null;
-
-            try {
-
-              // It's incoming data on a connection -- process it
-              sc = (SocketChannel)key.channel();
-              boolean ok = processInput( sc ,key, selector);
-
-              // If the connection is dead, remove it from the selector
-              // and close it
-              if (!ok) {
-                key.cancel();
-
-                Socket s = null;
-                try {
-                  s = sc.socket();
-                  System.out.println( "Closing connection to "+s );
-                  s.close();
-                } catch( IOException ie ) {
-                  System.err.println( "Error closing socket "+s+": "+ie );
+                // If we don't have any activity, loop around and wait again
+                if (num == 0) {
+                    continue;
                 }
-              }
 
-            } catch( IOException ie ) {
+                // Get the keys corresponding to the activity that has been
+                // detected, and process them one by one
+                Set<SelectionKey> keys = selector.selectedKeys();
+                for (SelectionKey key : keys) {
+                    // Get a key representing one of bits of I/O activity
 
-              // On exception, remove this channel from the selector
-              key.cancel();
+                    // What kind of activity is it?
+                    if (key.isAcceptable()) {
 
-              try {
-                sc.close();
-              } catch( IOException ie2 ) { System.out.println( ie2 ); }
+                        // It's an incoming connection. Register this socket with
+                        // the Selector so we can listen for input on it
+                        Socket s = ss.accept();
+                        System.out.println("Got connection from " + s);
 
-              System.out.println( "Closed "+sc );
+                        // Make sure to make it non-blocking, so we can use a selector
+                        // on it.
+                        SocketChannel socketChannel = s.getChannel();
+                        socketChannel.configureBlocking(false);
+
+                        // Register it with the selector, for reading
+                        SelectionKey userKey = socketChannel.register(selector,
+                                SelectionKey.OP_READ | SelectionKey.OP_WRITE);
+                        userKey.attach(new User(userKey));
+
+                    } else if (key.isReadable()) {
+
+                        SocketChannel socketChannel = null;
+
+                        try {
+
+                            // It's incoming data on a connection -- process it
+                            socketChannel = (SocketChannel) key.channel();
+                            List<String> messages = processPacket(socketChannel);
+
+                            // If the connection is dead, remove it from the selector
+                            // and close it
+                            if (messages == null) {
+                                key.cancel();
+
+                                Socket s = null;
+                                try {
+                                    s = socketChannel.socket();
+                                    System.out.println("Closing connection to " + s);
+                                    s.close();
+                                } catch (IOException ie) {
+                                    System.err.println("Error closing socket " + s + ": " + ie);
+                                }
+                            } else {
+                                for (String message : messages) {
+                                    processMessage(key, message);
+                                }
+                            }
+
+                        } catch (IOException ie) {
+
+                            // On exception, remove this channel from the selector
+                            key.cancel();
+
+                            try {
+                                socketChannel.close();
+                            } catch (IOException ie2) {
+                                System.out.println(ie2);
+                            }
+
+                            System.out.println("Closed " + socketChannel);
+                        }
+                    }
+                }
+
+                // We remove the selected keys, because we've dealt with them.
+                keys.clear();
             }
-          }
+        } catch (IOException ie) {
+            System.err.println(ie);
+        }
+    }
+
+    static List<String> processPacket(SocketChannel senderSocket, String leadingMessage)
+            throws IOException {
+        buffer.clear();
+        senderSocket.read(buffer);
+        buffer.flip();
+
+        // If no data, close the connection
+        if (buffer.limit() == 0) {
+            return null;
+        }
+        String input = leadingMessage.concat(decoder.decode(buffer).toString());
+        List<String> inputLines = new ArrayList<String>(Arrays.stream(input.split("\n", -1))
+                .collect(Collectors.toCollection(ArrayList::new)));
+        buffer.rewind();
+        String last = inputLines.remove(inputLines.size() - 1); // remove last
+        if (last.isBlank()) {
+            return inputLines;
+        } else {
+            inputLines.addAll(processPacket(senderSocket, last));
+            return inputLines;
+        }
+    }
+
+    static List<String> processPacket(SocketChannel senderSocket) throws IOException {
+        return processPacket(senderSocket, "");
+    }
+
+    static void processMessage(SelectionKey senderKey, String message) throws IOException {
+        User user = (User) senderKey.attachment();
+        if (isCommand(message)) {
+            String[] command = message.split(" ");
+            switch (command[0]) {
+                case "/nick":
+                    if (command.length < 2) {
+                        sendMessage("ERROR", senderKey);
+                    } else {
+                        // TODO check if name is available
+                        if (user.getName() != null && user.getCurrrentChat() != null)
+                            user.getCurrrentChat()
+                                    .sendMessage("NEWNICK " + user.getName() + command[2]);
+                        user.setName(command[1]);
+                        sendMessage("OK", senderKey);
+                        System.out.println("New name for User: " + command[1]);
+                    }
+                    break;
+                case "/join":
+                    System.out.println(command[1]); // debug
+                    System.out.println(Chat.getChat(command[1]));
+                    user.setCurrrentChat(Chat.getChat(command[1]));
+                    // TODO confirm join and tell other users of the chat
+                    break;
+                case "/leave":
+                    // TODO
+                    break;
+                case "/bye":
+                    Chat chat = user.getCurrrentChat();
+                    user.setCurrrentChat(null);
+                    sendMessage("BYE", senderKey);
+                    chat.sendMessage("LEFT " + user.getName());
+                    break;
+                default:
+                    sendMessage("ERROR", senderKey);
+                    break;
+            }
+        } else {
+            user.sendMessage("MESSAGE " + user.getName() + " " + message);
         }
 
-        // We remove the selected keys, because we've dealt with them.
-        keys.clear();
-      }
-    } catch( IOException ie ) {
-      System.err.println( ie );
+
     }
-  }
 
-  static private boolean isCommand(String input){
-    return (input.charAt(0) == '/' && input.charAt(1) != '/');
-  }
-
-  static private void sendMessage(String message, SelectionKey receiverKey) throws IOException{
-    ByteBuffer messageBuf = encoder.encode(CharBuffer.wrap(message.toCharArray())); // Turns message from string to byte buffer
-    sendMessage(messageBuf, receiverKey);
-  }
-
-  static private void sendMessage(ByteBuffer messageBuf, SelectionKey receiverKey) throws IOException{
-    SocketChannel sc = (SocketChannel) receiverKey.channel();
-    sc.write(messageBuf);
-    messageBuf.rewind();
-    sc.write(newline);
-    newline.rewind();
-  }
-
-
-
-
-  // Reads the message and send it to all sockets
-  static private boolean processInput( SocketChannel sc,SelectionKey senderKey, Selector selector) throws IOException {
-    // Read the message to the buffer
-    buffer.clear();
-    sc.read( buffer );
-    buffer.flip();
-
-    // If no data, close the connection
-    if (buffer.limit()==0) {
-      return false;
+    static public void sendMessage(String message, SelectionKey receiverKey) throws IOException {
+        ByteBuffer messageBuf = encoder.encode(CharBuffer.wrap(message.toCharArray())); // Turns
+                                                                                        // message
+                                                                                        // from
+                                                                                        // string to
+                                                                                        // byte
+                                                                                        // buffer
+        sendMessage(messageBuf, receiverKey);
     }
-    String input = decoder.decode(buffer).toString();
-    buffer.rewind();
-    if (isCommand(input)){
-      String[] command = input.split("[ \n]");
-      switch (command[0]){
-        case "/nick":
-          if(command.length < 2){
-            sendMessage("ERROR", senderKey);
-          }
-          else {
-          //todo check if name is available
-          senderKey.attach(command[1]);
-          //todo send nickname to users of a room
-          sendMessage("OK", senderKey);
-          }
-          break;
-        case "/join":
-          //todo
-          break;
-        case "/leave":
-          //todo
-          break;
-        case "/bye":
-          //todo
-          sendMessage("BYE", senderKey);
-          break;
-        default:
-          sendMessage("ERROR", senderKey);
-          break; 
-      }
-    }
-    else {
-    // Buffer is message so we rebroadcast it
-    String nickname = senderKey.attachment().toString();
-    String content = decoder.decode(buffer).toString();
-    String message = "MESSAGE " + nickname + " " + content;
 
-    ByteBuffer messageBuf = encoder.encode(CharBuffer.wrap(message.toCharArray())); // Turns message from string to byte buffer
-    Set<SelectionKey> keys = selector.selectedKeys();
-    Iterator<SelectionKey> it = keys.iterator();
-    while (it.hasNext()) {
-      // Get a key representing one of bits of I/O activity
-      SelectionKey key = it.next();
-      // Check if Selected channels is accepting writes
-      if (key.isWritable()) {
-        System.out.println("Sending message to "+ key.attachment());
-        sendMessage(messageBuf, key);
-      } else System.out.println("Socket not Writable");
+    static public void sendMessage(ByteBuffer messageBuf, SelectionKey receiverKey)
+            throws IOException {
+        SocketChannel sc = (SocketChannel) receiverKey.channel();
+        sc.write(messageBuf);
+        messageBuf.rewind();
+        sc.write(newline);
+        newline.rewind();
     }
-    System.out.println("fim");
-  }
-    return true;
-  }
+
+    static private boolean isCommand(String input) {
+        return (input.charAt(0) == '/' && input.charAt(1) != '/');
+    }
+}
+
+
+class User {
+    private String name;
+    private Chat currrentChat;
+    private SelectionKey key;
+
+    User(SelectionKey key) {
+        this.name = null;
+        this.key = key;
+        currrentChat = null;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public void setKey(SelectionKey key) {
+        this.key = key;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public SelectionKey getKey() {
+        return key;
+    }
+
+    public Chat getCurrrentChat() {
+        return currrentChat;
+    }
+
+    public void setCurrrentChat(Chat currrentChat) {
+        this.currrentChat = currrentChat;
+        if (currrentChat != null)
+            currrentChat.addUser(this);
+    }
+
+    public void sendMessage(ByteBuffer messageBuf) throws IOException {
+        for (User u : this.currrentChat.getUsers()) {
+            if (u != this) {
+                if (u.getKey().isWritable())
+                    ChatServers.sendMessage(messageBuf, u.getKey());
+                else
+                    System.err.println("A user in chat can`t receive messages");
+            }
+        }
+    }
+
+    public void sendMessage(String message) throws IOException {
+        ByteBuffer messageBuf = ChatServers.encoder.encode(CharBuffer.wrap(message.toCharArray()));
+        sendMessage(messageBuf);
+    }
+}
+
+
+class Chat {
+    private static Dictionary<String, Chat> chatDict = new Hashtable<>();
+    private String name;
+    private List<User> users;
+
+    public static Chat getChat(String name) {
+        return chatDict.get(name);
+    }
+
+    Chat(String name) {
+        this.name = name;
+        chatDict.put(name, this);
+        users = new ArrayList<User>();
+    }
+
+    public List<User> getUsers() {
+        return users;
+    }
+
+
+    public void addUser(User user) {
+        this.users.add(user);
+    }
+
+    void sendMessage(ByteBuffer buf) throws IOException {
+        for (User u : users) {
+            if (u.getKey().isWritable())
+                ChatServers.sendMessage(buf, u.getKey());
+            else
+                System.err.println("A user in chat can`t receive messages");
+        }
+    }
+
+    void sendMessage(String message) throws IOException {
+        ByteBuffer messageBuf = ChatServers.encoder.encode(CharBuffer.wrap(message.toCharArray()));
+        sendMessage(messageBuf);
+    }
 }
