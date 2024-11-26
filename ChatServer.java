@@ -165,9 +165,9 @@ public class ChatServer {
         if (isCommand(message)) {
             processCommand(message, user);
         } else if (user.isInside()){
-            user.sendMessageFromHim("MESSAGE " + user.getName() + " " + message);
+            user.SendMessageFromUser("MESSAGE " + user.getName() + " " + message);
         } else {
-            user.sendMessageToHim("ERROR");
+            user.sendMessageToUser("ERROR");
         }
 
 
@@ -200,42 +200,46 @@ public class ChatServer {
         switch (command[0]) {
             case "/nick":
                 if (command.length < 2) {
-                    user.sendMessageToHim("ERROR");
+                    user.sendMessageToUser("ERROR");
                 } else {
                     if (user.setName(command[1])){
                         if (user.isInside()){
                             user.getCurrrentChat().sendMessage("NEWNICK " + user.getName() + " " + command[1]);
                         }
-                        user.sendMessageToHim("OK");
+                        user.sendMessageToUser("OK");
                         System.out.println("New name for User: " + command[1]);
                     } else {
-                        user.sendMessageToHim("ERROR");
+                        user.sendMessageToUser("ERROR");
                     }
                 }
                 break;
             case "/join":
                 if (user.isInside()){
-                    user.sendMessageFromHim("LEFT " + user.getName());
+                    user.SendMessageFromUser("LEFT " + user.getName());
                 }
                 Chat newChat = Chat.getChat(command[1]);
-                if (newChat != null){
-                    user.setCurrrentChat(newChat);
-                    user.sendMessageFromHim("JOIN " + user.getName());
-                    user.sendMessageToHim("OK");
-                } else {
-                    user.sendMessageToHim("ERROR");
+                if (newChat == null){
+                    newChat = new Chat(command[2]);
                 }
+                user.setCurrrentChat(newChat);
+                user.SendMessageFromUser("JOINED " + user.getName());
+                user.sendMessageToUser("OK");
                 break;
             case "/leave":
-                //TODO
+                if (user.isInside()){
+                    user.setCurrrentChat(null);
+                    user.SendMessageFromUser("LEFT " + user.getName());
+                    user.sendMessageToUser("OK");
+                } else
+                    user.sendMessageToUser("ERROR");
                 break;
             case "/bye":
-                user.sendMessageFromHim("LEFT " + user.getName());
+                user.SendMessageFromUser("LEFT " + user.getName());
                 user.setCurrrentChat(null);
-                user.sendMessageToHim("BYE");
+                user.sendMessageToUser("BYE");
                 break;
             default:
-                user.sendMessageToHim("ERROR");
+                user.sendMessageToUser("ERROR");
                 break;
         }
     }
@@ -297,7 +301,7 @@ class User {
             currrentChat.addUser(this);
     }
 
-    public void sendMessageFromHim(ByteBuffer messageBuf) throws IOException {
+    public void SendMessageFromUser(ByteBuffer messageBuf) throws IOException {
         for (User u : this.currrentChat.getUsers()) {
             if (u != this) {
                 if (u.getKey().isWritable())
@@ -308,15 +312,15 @@ class User {
         }
     }
 
-    public void sendMessageFromHim(String message) throws IOException {
+    public void SendMessageFromUser(String message) throws IOException {
         ByteBuffer messageBuf = ChatServer.encoder.encode(CharBuffer.wrap(message.toCharArray()));
-        sendMessageFromHim(messageBuf);
+        SendMessageFromUser(messageBuf);
     }
-    public void sendMessageToHim(String message) throws IOException{
+    public void sendMessageToUser(String message) throws IOException{
         ByteBuffer messageBuf = ChatServer.encoder.encode(CharBuffer.wrap(message.toCharArray()));
-        sendMessageToHim(messageBuf);
+        sendMessageToUser(messageBuf);
     }
-    public void sendMessageToHim(ByteBuffer messageBuf) throws IOException{
+    public void sendMessageToUser(ByteBuffer messageBuf) throws IOException{
         ChatServer.sendMessage(messageBuf, this.getKey());
     }
 }
