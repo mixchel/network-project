@@ -199,31 +199,39 @@ public class ChatServer {
         String[] command = message.split(" ");
         switch (command[0]) {
             case "/nick":
-                if (command.length < 2) {
+                if (command.length != 2){
                     user.sendMessageToUser("ERROR");
-                } else {
-                    if (user.setName(command[1])){
-                        if (user.isInside()){
-                            user.getCurrrentChat().sendMessage("NEWNICK " + user.getName() + " " + command[1]);
-                        }
-                        user.sendMessageToUser("OK");
-                        System.out.println("New name for User: " + command[1]);
-                    } else {
-                        user.sendMessageToUser("ERROR");
+                    break;
+                }
+                if (user.setName(command[1])){
+                    if (user.isInside()){
+                        user.getCurrrentChat().sendMessage("NEWNICK " + user.getName() + " " + command[1]);
                     }
+                    user.sendMessageToUser("OK");
+                    System.out.println("New name for User: " + command[1]);
+                } else {
+                    user.sendMessageToUser("ERROR");
                 }
                 break;
             case "/join":
+                if (command.length != 2){
+                    user.sendMessageToUser("Error");
+                    break;
+                }
+                if (user.isInit()){
+                    user.sendMessageToUser("ERROR");
+                }else {
                 if (user.isInside()){
                     user.SendMessageFromUser("LEFT " + user.getName());
                 }
                 Chat newChat = Chat.getChat(command[1]);
                 if (newChat == null){
-                    newChat = new Chat(command[2]);
+                    newChat = new Chat(command[1]);
                 }
                 user.setCurrrentChat(newChat);
                 user.SendMessageFromUser("JOINED " + user.getName());
                 user.sendMessageToUser("OK");
+                }
                 break;
             case "/leave":
                 if (user.isInside()){
@@ -234,9 +242,13 @@ public class ChatServer {
                     user.sendMessageToUser("ERROR");
                 break;
             case "/bye":
+            if (user.isInside()){
                 user.SendMessageFromUser("LEFT " + user.getName());
                 user.setCurrrentChat(null);
+            }
                 user.sendMessageToUser("BYE");
+                user.getKey().channel().close();
+                user.getKey().cancel();
                 break;
             default:
                 user.sendMessageToUser("ERROR");
