@@ -19,6 +19,9 @@ public class ChatServer {
     static final CharsetDecoder decoder = charset.newDecoder();
     static final CharsetEncoder encoder = charset.newEncoder();
 
+    // An array for currently occupied names
+    static public Set<String> occupiedNames = new HashSet<String>();  
+
     static public void main(String args[]) {
         int port = Integer.parseInt(args[0]);
         new Chat("padrao");
@@ -160,42 +163,9 @@ public class ChatServer {
     static void processMessage(SelectionKey senderKey, String message) throws IOException {
         User user = (User) senderKey.attachment();
         if (isCommand(message)) {
-            String[] command = message.split(" ");
-            switch (command[0]) {
-                case "/nick":
-                    if (command.length < 2) {
-                        sendMessage("ERROR", senderKey);
-                    } else {
-                        // TODO check if name is available
-                        if (user.getName() != null && user.getCurrrentChat() != null)
-                            user.getCurrrentChat()
-                                    .sendMessage("NEWNICK " + user.getName() + command[2]);
-                        user.setName(command[1]);
-                        sendMessage("OK", senderKey);
-                        System.out.println("New name for User: " + command[1]);
-                    }
-                    break;
-                case "/join":
-                    System.out.println(command[1]); // debug
-                    System.out.println(Chat.getChat(command[1]));
-                    user.setCurrrentChat(Chat.getChat(command[1]));
-                    // TODO confirm join and tell other users of the chat
-                    break;
-                case "/leave":
-                    // TODO
-                    break;
-                case "/bye":
-                    Chat chat = user.getCurrrentChat();
-                    user.setCurrrentChat(null);
-                    sendMessage("BYE", senderKey);
-                    chat.sendMessage("LEFT " + user.getName());
-                    break;
-                default:
-                    sendMessage("ERROR", senderKey);
-                    break;
-            }
+            processCommand(message, user);
         } else {
-            user.sendMessage("MESSAGE " + user.getName() + " " + message);
+            user.sendMessageFromHim("MESSAGE " + user.getName() + " " + message);
         }
 
 
@@ -223,6 +193,50 @@ public class ChatServer {
     static private boolean isCommand(String input) {
         return (input.charAt(0) == '/' && input.charAt(1) != '/');
     }
+    static private void processCommand(String message,User user){
+        String[] command = message.split(" ");
+        switch (command[0]) {
+            case "/nick":
+                if (command.length < 2) {
+                    user.sendMessageToHim("ERROR");
+                } else {
+                    if (user.setName(command[1])){
+                        if (user.isInside()){
+                            user.getCurrrentChat().sendMessage("NEWNICK " + user.getName() + " " + command[2]);
+                        }
+                        user.sendMessageToHim("OK");
+                        System.out.println("New name for User: " + command[1]);
+                    } else {
+                        user.sendMessageToHim("Error");
+                    }
+                }
+                break;
+            case "/join":
+                if (user.isInside()){
+                    user.sendMessageFromHim("LEFT " + user.name);
+                }
+                Chat newChat = Chat.getChat(command[1]);
+                if (newChat != null){
+                    user.setCurrrentChat(newChat);
+                    user.sendMessageFromHim("JOIN " + user.name);
+                    user.sendMessageToHim("OK");
+                } else {
+                    user.sendMessageToHim("ERROR");
+                }
+                break;
+            case "/leave":
+                //TODO
+                break;
+            case "/bye":
+                Chat chat = user.getCurrrentChat();
+                user.setCurrrentChat(null);
+                user.sendMessageToHim("BYE");
+                user.sendMessageToHim("LEFT " + user.getName());
+                break;
+            default:
+                user.sendMessageToHim("ERROR");
+                break;
+    }
 }
 
 
@@ -236,9 +250,24 @@ class User {
         this.key = key;
         currrentChat = null;
     }
+    public boolean isInit(){
+        return this.name == null && this.currrentChat == null;
+    }
 
-    public void setName(String name) {
-        this.name = name;
+    public boolean isOutside(){
+        return this.name != null && currrentChat == null;
+    }
+
+    public boolean isInside(){
+        return this.currrentChat != null;
+    }
+
+    public boolean setName(String newName) {
+        if (ChatServer.occupiedNames.add(newName)){
+            this.name = newName;
+            return true;
+        }
+        return false;
     }
 
     public void setKey(SelectionKey key) {
@@ -257,13 +286,16 @@ class User {
         return currrentChat;
     }
 
-    public void setCurrrentChat(Chat currrentChat) {
-        this.currrentChat = currrentChat;
+    public void setCurrrentChat(Chat newChat) {
+        if (isInside()){
+            currrentChat.removeUser(this);
+        }
+        this.currrentChat = newChat;
         if (currrentChat != null)
             currrentChat.addUser(this);
     }
 
-    public void sendMessage(ByteBuffer messageBuf) throws IOException {
+    public void sendMessageFromHim(ByteBuffer messageBuf) throws IOException {
         for (User u : this.currrentChat.getUsers()) {
             if (u != this) {
                 if (u.getKey().isWritable())
@@ -274,9 +306,16 @@ class User {
         }
     }
 
-    public void sendMessage(String message) throws IOException {
+    public void sendMessageFromHim(String message) throws IOException {
         ByteBuffer messageBuf = ChatServers.encoder.encode(CharBuffer.wrap(message.toCharArray()));
-        sendMessage(messageBuf);
+        sendMessageFromHim(messageBuf);
+    }
+    public void sendMessageToHim(String message) throws IOException{
+        ByteBuffer messageBuf = ChatServers.encoder.encode(CharBuffer.wrap(message.toCharArray()));
+        sendMessageToHim(messageBuf);
+    }
+    public void sendMessageToHim(ByteBuffer messageBuf){
+        ChatServer.sendMessage(messageBuf, this.getKey());
     }
 }
 
@@ -303,6 +342,10 @@ class Chat {
 
     public void addUser(User user) {
         this.users.add(user);
+    }
+
+    public void removeUser(User user) {
+        this.users.remove(user);
     }
 
     void sendMessage(ByteBuffer buf) throws IOException {
