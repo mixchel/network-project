@@ -193,7 +193,7 @@ public class ChatServer {
     static private boolean isCommand(String input) {
         return (input.charAt(0) == '/' && input.charAt(1) != '/');
     }
-    static private void processCommand(String message,User user){
+    static private void processCommand(String message,User user)throws IOException{
         String[] command = message.split(" ");
         switch (command[0]) {
             case "/nick":
@@ -213,12 +213,12 @@ public class ChatServer {
                 break;
             case "/join":
                 if (user.isInside()){
-                    user.sendMessageFromHim("LEFT " + user.name);
+                    user.sendMessageFromHim("LEFT " + user.getName());
                 }
                 Chat newChat = Chat.getChat(command[1]);
                 if (newChat != null){
                     user.setCurrrentChat(newChat);
-                    user.sendMessageFromHim("JOIN " + user.name);
+                    user.sendMessageFromHim("JOIN " + user.getName());
                     user.sendMessageToHim("OK");
                 } else {
                     user.sendMessageToHim("ERROR");
@@ -236,6 +236,7 @@ public class ChatServer {
             default:
                 user.sendMessageToHim("ERROR");
                 break;
+        }
     }
 }
 
