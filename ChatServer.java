@@ -23,8 +23,17 @@ public class ChatServer {
     static public Set<String> occupiedNames = new HashSet<String>();  
 
     static public void main(String args[]) {
-        int port = Integer.parseInt(args[0]);
-        new Chat("padrao");
+        int port;
+        try {
+            port = Integer.parseInt(args[0]);
+        } catch (ArrayIndexOutOfBoundsException a){
+            port = 1024;
+            System.out.println("No port was provided as an argument so the default port 1024 will be used");
+        } catch (NumberFormatException b){
+            port = 1024;
+            System.out.println("First argument can't be interpreted as port so default port 1024 will be used");
+        }
+        
         try {
             // Instead of creating a ServerSocket, create a ServerSocketChannel
             ServerSocketChannel serverSocketChannel = ServerSocketChannel.open();
@@ -87,11 +96,11 @@ public class ChatServer {
                         try {
 
                             // It's incoming data on a connection -- process it
-                            socketChannel = (SocketChannel) key.channel();
-                            List<String> messages = processPacket(socketChannel);
+                            List<String> messages = processPacket((User) key.attachment());
 
                             // If the connection is dead, remove it from the selector
                             // and close it
+                            socketChannel = (SocketChannel) key.channel();
                             if (messages == null) {
                                 key.cancel();
 
@@ -133,8 +142,13 @@ public class ChatServer {
         }
     }
 
-    static List<String> processPacket(SocketChannel senderSocket, String leadingMessage)
+    static boolean isNameAvailable(String name){
+        return !( occupiedNames.contains(name) );
+    }
+
+    static List<String> processPacket(User sender)
             throws IOException {
+        SocketChannel senderSocket = (SocketChannel) sender.getKey().channel();
         buffer.clear();
         senderSocket.read(buffer);
         buffer.flip();
@@ -143,21 +157,14 @@ public class ChatServer {
         if (buffer.limit() == 0) {
             return null;
         }
-        String input = leadingMessage.concat(decoder.decode(buffer).toString());
+        String messageStart = sender.getUnfinishedMessage();
+        String input = messageStart.concat(decoder.decode(buffer).toString());
         List<String> inputLines = new ArrayList<String>(Arrays.stream(input.split("\n", -1))
                 .collect(Collectors.toCollection(ArrayList::new)));
         buffer.rewind();
         String last = inputLines.remove(inputLines.size() - 1); // remove last
-        if (last.isBlank()) {
-            return inputLines;
-        } else {
-            inputLines.addAll(processPacket(senderSocket, last));
-            return inputLines;
-        }
-    }
-
-    static List<String> processPacket(SocketChannel senderSocket) throws IOException {
-        return processPacket(senderSocket, "");
+        sender.setUnfinishedMessage(last); // if there is no unfinished message the string will be ""
+        return inputLines; //Complete messages
     }
 
     static void processMessage(SelectionKey senderKey, String message) throws IOException {
@@ -203,19 +210,16 @@ public class ChatServer {
                     user.sendMessageToUser("ERROR");
                     break;
                 }
-                if (user.setName(command[1])){
-                    if (user.isInside()){
-                        user.getCurrrentChat().sendMessage("NEWNICK " + user.getName() + " " + command[1]);
-                    }
+                if (isNameAvailable(command[1])){
+                    if (user.isInside())
+                        user.SendMessageFromUser("NEWNICK " + user.getName() + " " + command[1]);
+                    user.setName(command[1]);
                     user.sendMessageToUser("OK");
-                    System.out.println("New name for User: " + command[1]);
-                } else {
-                    user.sendMessageToUser("ERROR");
                 }
                 break;
             case "/join":
                 if (command.length != 2){
-                    user.sendMessageToUser("Error");
+                    user.sendMessageToUser("ERROR");
                     break;
                 }
                 if (user.isInit()){
@@ -235,8 +239,8 @@ public class ChatServer {
                 break;
             case "/leave":
                 if (user.isInside()){
-                    user.setCurrrentChat(null);
                     user.SendMessageFromUser("LEFT " + user.getName());
+                    user.setCurrrentChat(null);
                     user.sendMessageToUser("OK");
                 } else
                     user.sendMessageToUser("ERROR");
@@ -262,10 +266,20 @@ class User {
     private String name;
     private Chat currrentChat;
     private SelectionKey key;
+    private String unfinishedMessage;
+
+    public String getUnfinishedMessage() {
+        return unfinishedMessage;
+    }
+
+    public void setUnfinishedMessage(String unfinishedMessage) {
+        this.unfinishedMessage = unfinishedMessage;
+    }
 
     User(SelectionKey key) {
         this.name = null;
         this.key = key;
+        this.unfinishedMessage = "";
         currrentChat = null;
     }
     public boolean isInit(){
