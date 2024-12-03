@@ -9,6 +9,7 @@ import javax.swing.*;
 // ISSUE: only prints penultimate message
 // TODO: threading
 // TODO: improve error messages
+// TODO: ttf fonts
 
 public class ChatClient {
 
