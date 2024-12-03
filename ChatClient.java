@@ -1,5 +1,6 @@
 import java.io.*;
 import java.net.*;
+import java.util.List;
 import java.util.*;
 import java.awt.*;
 import java.awt.event.*;
@@ -78,10 +79,10 @@ public class ChatClient {
 
     // Pretty print messages recieved from server
     public String decodeMessage(String message){
-        String tokens[] = message.split(" ");
+        java.util.List<String> tokens = Arrays.asList(message.split(" "));
         String decodedMessage = "UNDEFINED DECODED MESSAGE";
-        System.out.println("token[0]: " + tokens[0]);
-        switch(tokens[0]){
+        System.out.println("token[0]: " + tokens.get(0));
+        switch(tokens.get(0)){
         case "ERROR":
             decodedMessage = "Error";
             break;
@@ -89,16 +90,16 @@ public class ChatClient {
             decodedMessage = "Ok";
             break;
         case "MESSAGE":
-            decodedMessage = tokens[1] + ": " + String.join(" ", tokens[2]);
+            decodedMessage = tokens.get(1) + ": " + String.join(" ", tokens.subList(2, tokens.size()));
             break;
         case "JOINED":
-            decodedMessage = "The user " + tokens[1] + " has joined the room";
+            decodedMessage = "The user " + tokens.get(1) + " has joined the room";
             break;
         case "NEWNICK":
-            decodedMessage = tokens[1] + " -> " + tokens[2];
+            decodedMessage = tokens.get(1) + " -> " + tokens.get(2);
             break;
         case "LEFT":
-            decodedMessage = "The user " + tokens[1] + " has left the room";
+            decodedMessage = "The user " + tokens.get(1) + " has left the room";
             break;
         case "BYE":
             decodedMessage = "Bye!";
