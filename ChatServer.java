@@ -20,20 +20,23 @@ public class ChatServer {
     static final CharsetEncoder encoder = charset.newEncoder();
 
     // An array for currently occupied names
-    static public Set<String> occupiedNames = new HashSet<String>();  
+    static public Set<String> occupiedNames = new HashSet<String>();
+    static public Map<String, SelectionKey> userMap = new HashMap<>();
 
     static public void main(String args[]) {
         int port;
         try {
             port = Integer.parseInt(args[0]);
-        } catch (ArrayIndexOutOfBoundsException a){
+        } catch (ArrayIndexOutOfBoundsException a) {
             port = 1024;
-            System.out.println("No port was provided as an argument so the default port 1024 will be used");
-        } catch (NumberFormatException b){
+            System.out.println(
+                    "No port was provided as an argument so the default port 1024 will be used");
+        } catch (NumberFormatException b) {
             port = 1024;
-            System.out.println("First argument can't be interpreted as port so default port 1024 will be used");
+            System.out.println(
+                    "First argument can't be interpreted as port so default port 1024 will be used");
         }
-        
+
         try {
             // Instead of creating a ServerSocket, create a ServerSocketChannel
             ServerSocketChannel serverSocketChannel = ServerSocketChannel.open();
@@ -142,12 +145,11 @@ public class ChatServer {
         }
     }
 
-    static boolean isNameAvailable(String name){
-        return !( occupiedNames.contains(name) );
+    static boolean isNameAvailable(String name) {
+        return !(occupiedNames.contains(name));
     }
 
-    static List<String> processPacket(User sender)
-            throws IOException {
+    static List<String> processPacket(User sender) throws IOException {
         SocketChannel senderSocket = (SocketChannel) sender.getKey().channel();
         buffer.clear();
         senderSocket.read(buffer);
@@ -163,15 +165,16 @@ public class ChatServer {
                 .collect(Collectors.toCollection(ArrayList::new)));
         buffer.rewind();
         String last = inputLines.remove(inputLines.size() - 1); // remove last
-        sender.setUnfinishedMessage(last); // if there is no unfinished message the string will be ""
-        return inputLines; //Complete messages
+        sender.setUnfinishedMessage(last); // if there is no unfinished message the string will be
+                                           // ""
+        return inputLines; // Complete messages
     }
 
     static void processMessage(SelectionKey senderKey, String message) throws IOException {
         User user = (User) senderKey.attachment();
         if (isCommand(message)) {
             processCommand(message, user);
-        } else if (user.isInside()){
+        } else if (user.isInside()) {
             user.SendMessageFromUser("MESSAGE " + user.getName() + " " + message);
         } else {
             user.sendMessageToUser("ERROR");
@@ -200,45 +203,48 @@ public class ChatServer {
     }
 
     static private boolean isCommand(String input) {
-        return (input.charAt(0) == '/' && input.charAt(1) != '/');
+        return (input.length() > 2 && input.charAt(0) == '/' && input.charAt(1) != '/');
     }
-    static private void processCommand(String message,User user)throws IOException{
+
+    static private void processCommand(String message, User user) throws IOException {
         String[] command = message.split(" ");
         switch (command[0]) {
             case "/nick":
-                if (command.length != 2){
+                if (command.length != 2) {
                     user.sendMessageToUser("ERROR");
                     break;
                 }
-                if (isNameAvailable(command[1])){
+                if (isNameAvailable(command[1])) {
                     if (user.isInside())
                         user.SendMessageFromUser("NEWNICK " + user.getName() + " " + command[1]);
+                        userMap.remove(user.getName());
                     user.setName(command[1]);
+                    userMap.put(user.getName(), user.getKey());
                     user.sendMessageToUser("OK");
                 }
                 break;
             case "/join":
-                if (command.length != 2){
+                if (command.length != 2) {
                     user.sendMessageToUser("ERROR");
                     break;
                 }
-                if (user.isInit()){
+                if (user.isInit()) {
                     user.sendMessageToUser("ERROR");
-                }else {
-                if (user.isInside()){
-                    user.SendMessageFromUser("LEFT " + user.getName());
-                }
-                Chat newChat = Chat.getChat(command[1]);
-                if (newChat == null){
-                    newChat = new Chat(command[1]);
-                }
-                user.setCurrrentChat(newChat);
-                user.SendMessageFromUser("JOINED " + user.getName());
-                user.sendMessageToUser("OK");
+                } else {
+                    if (user.isInside()) {
+                        user.SendMessageFromUser("LEFT " + user.getName());
+                    }
+                    Chat newChat = Chat.getChat(command[1]);
+                    if (newChat == null) {
+                        newChat = new Chat(command[1]);
+                    }
+                    user.setCurrrentChat(newChat);
+                    user.SendMessageFromUser("JOINED " + user.getName());
+                    user.sendMessageToUser("OK");
                 }
                 break;
             case "/leave":
-                if (user.isInside()){
+                if (user.isInside()) {
                     user.SendMessageFromUser("LEFT " + user.getName());
                     user.setCurrrentChat(null);
                     user.sendMessageToUser("OK");
@@ -246,13 +252,23 @@ public class ChatServer {
                     user.sendMessageToUser("ERROR");
                 break;
             case "/bye":
-            if (user.isInside()){
-                user.SendMessageFromUser("LEFT " + user.getName());
-                user.setCurrrentChat(null);
-            }
+                if (user.isInside()) {
+                    user.SendMessageFromUser("LEFT " + user.getName());
+                    user.setCurrrentChat(null);
+                }
                 user.sendMessageToUser("BYE");
                 user.getKey().channel().close();
                 user.getKey().cancel();
+                break;
+            case "/priv":
+                if (user.isInit() ||command.length < 3 || !userMap.containsKey(command[1])){ //If sender has no name (isInit), command doesn't contain messages or there is no user with receiver name ERROR
+                    user.sendMessageToUser("ERROR");
+                } else{
+                    SelectionKey receiverKey = userMap.get(command[1]);
+                    String privateMessage = String.join(" ", Arrays.copyOfRange(command, 2, command.length));
+                    user.sendMessageToUser("OK");
+                    sendMessage("PRIVATE " + user.getName() + " " + privateMessage, receiverKey);
+                }
                 break;
             default:
                 user.sendMessageToUser("ERROR");
@@ -282,20 +298,21 @@ class User {
         this.unfinishedMessage = "";
         currrentChat = null;
     }
-    public boolean isInit(){
+
+    public boolean isInit() {
         return this.name == null && this.currrentChat == null;
     }
 
-    public boolean isOutside(){
+    public boolean isOutside() {
         return this.name != null && currrentChat == null;
     }
 
-    public boolean isInside(){
+    public boolean isInside() {
         return this.currrentChat != null;
     }
 
     public boolean setName(String newName) {
-        if (ChatServer.occupiedNames.add(newName)){
+        if (ChatServer.occupiedNames.add(newName)) {
             this.name = newName;
             return true;
         }
@@ -319,7 +336,7 @@ class User {
     }
 
     public void setCurrrentChat(Chat newChat) {
-        if (isInside()){
+        if (isInside()) {
             currrentChat.removeUser(this);
         }
         this.currrentChat = newChat;
@@ -342,20 +359,22 @@ class User {
         ByteBuffer messageBuf = ChatServer.encoder.encode(CharBuffer.wrap(message.toCharArray()));
         SendMessageFromUser(messageBuf);
     }
-    public void sendMessageToUser(String message) throws IOException{
+
+    public void sendMessageToUser(String message) throws IOException {
         ByteBuffer messageBuf = ChatServer.encoder.encode(CharBuffer.wrap(message.toCharArray()));
         sendMessageToUser(messageBuf);
     }
-    public void sendMessageToUser(ByteBuffer messageBuf) throws IOException{
+
+    public void sendMessageToUser(ByteBuffer messageBuf) throws IOException {
         ChatServer.sendMessage(messageBuf, this.getKey());
     }
 }
 
 
 class Chat {
-    private static Dictionary<String, Chat> chatDict = new Hashtable<>();
+    private static Map<String, Chat> chatDict = new Hashtable<>();
     private String name;
-    private List<User> users;
+    private List<User> userMap;
 
     public static Chat getChat(String name) {
         return chatDict.get(name);
@@ -364,24 +383,24 @@ class Chat {
     Chat(String name) {
         this.name = name;
         chatDict.put(name, this);
-        users = new ArrayList<User>();
+        userMap = new ArrayList<User>();
     }
 
     public List<User> getUsers() {
-        return users;
+        return userMap;
     }
 
 
     public void addUser(User user) {
-        this.users.add(user);
+        this.userMap.add(user);
     }
 
     public void removeUser(User user) {
-        this.users.remove(user);
+        this.userMap.remove(user);
     }
 
     void sendMessage(ByteBuffer buf) throws IOException {
-        for (User u : users) {
+        for (User u : userMap) {
             if (u.getKey().isWritable())
                 ChatServer.sendMessage(buf, u.getKey());
             else
