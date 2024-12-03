@@ -5,29 +5,28 @@ import java.awt.*;
 import java.awt.event.*;
 import javax.swing.*;
 
-// TODO: report error if it can't connect to a server
-// TODO: parse messages
+// TODO: report error if it can't connect to a server and quit
 // ISSUE: only prints penultimate message
+// TODO: threading
+// TODO: improve error messages
 
 public class ChatClient {
 
-    // Variáveis relacionadas com a interface gráfica --- * NÃO MODIFICAR *
+    // UI Vars
     JFrame frame = new JFrame("Chat Client");
     private JTextField chatBox = new JTextField();
     private JTextArea chatArea = new JTextArea();
 
-    // Se for necessário adicionar variáveis ao objecto ChatClient, devem
-    // ser colocadas aqui
+    // Other
     String domain;
     int port;
 
-    // buffers
+    // Buffers/Streams
     DataOutputStream outToServer;
     BufferedReader inFromServer;
 
     
-    // Método a usar para acrescentar uma string à caixa de texto
-    // * NÃO MODIFICAR *
+    // Send message to history
     public void printMessage(final String message) {
         chatArea.append(message);
     }
@@ -36,7 +35,7 @@ public class ChatClient {
     // Construtor
     public ChatClient(String server, int port) throws IOException {
 
-        // Inicialização da interface gráfica --- * NÃO MODIFICAR *
+        // Initialize UI
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         JPanel panel = new JPanel();
         panel.setLayout(new BorderLayout());
@@ -64,12 +63,8 @@ public class ChatClient {
                 chatBox.requestFocusInWindow();
             }
         });
-        // --- Fim da inicialização da interface gráfica
 
-        // Se for necessário adicionar código de inicialização ao
-        // construtor, deve ser colocado aqui
-
-        // conectar ao servidor
+        // Connect to server and generate buffers
         BufferedReader inFromUser =
             new BufferedReader(new InputStreamReader(System.in)); //necessário?
         Socket clientSocket = new Socket(domain, port);
@@ -81,6 +76,7 @@ public class ChatClient {
 
     }
 
+    // Pretty print messages recieved from server
     public String decodeMessage(String message){
         String tokens[] = message.split(" ");
         String decodedMessage = "UNDEFINED DECODED MESSAGE";
