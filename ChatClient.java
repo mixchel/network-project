@@ -8,7 +8,6 @@ import javax.swing.*;
 // TODO: report error if it can't connect to a server and quit
 // ISSUE: only prints penultimate message
 // TODO: threading
-// TODO: improve error messages
 // TODO: ttf fonts
 
 public class ChatClient {
@@ -115,7 +114,6 @@ public class ChatClient {
     // Método invocado sempre que o utilizador insere uma mensagem
     // na caixa de entrada
     public void newMessage(String message) throws IOException {
-        // PREENCHER AQUI com código que envia a mensagem ao servidor
         outToServer.writeBytes(message + '\n');
         String response = inFromServer.readLine();
         chatArea.append(decodeMessage(response) + '\n');
@@ -132,13 +130,18 @@ public class ChatClient {
     
 
     // Instancia o ChatClient e arranca-o invocando o seu método run()
-    // * NÃO MODIFICAR *
+    // * NÃO MODIFICAR * ISSUE: Frik, I modified it...
     public static void main(String[] args) throws IOException {
         if(args.length != 2){
             throw new IllegalArgumentException("USAGE: ChatClient HOSTNAME PORT");
         }
+
+        try{
         ChatClient client = new ChatClient(args[0], Integer.parseInt(args[1]));
         client.run();
+        } catch(ConnectException e) {
+            System.out.println("The server " + args[0] + ":" + args[1] + " is currently unreachable");
+            System.exit(1);
+        }
     }
-
 }
