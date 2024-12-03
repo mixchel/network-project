@@ -68,7 +68,9 @@ public class ChatClient {
         // Connect to server and generate buffers
         BufferedReader inFromUser =
             new BufferedReader(new InputStreamReader(System.in)); //necessário?
+        System.out.println("DEBUG: Attempting to connect to " + domain + ":" + port);
         Socket clientSocket = new Socket(domain, port);
+        System.out.println("DEBUG: Connected to " + domain + ":" + port);
         outToServer =
          new DataOutputStream(clientSocket.getOutputStream());
         inFromServer =
@@ -81,7 +83,7 @@ public class ChatClient {
     public String decodeMessage(String message){
         java.util.List<String> tokens = Arrays.asList(message.split(" "));
         String decodedMessage = "UNDEFINED DECODED MESSAGE";
-        System.out.println("token[0]: " + tokens.get(0));
+        System.out.println("DEBUG: token[0]: " + tokens.get(0));
         switch(tokens.get(0)){
         case "ERROR":
             decodedMessage = "Error";
