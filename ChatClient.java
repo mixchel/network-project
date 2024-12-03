@@ -81,6 +81,39 @@ public class ChatClient {
 
     }
 
+    public String decodeMessage(String message){
+        String tokens[] = message.split(" ");
+        String decodedMessage = "UNDEFINED DECODED MESSAGE";
+        System.out.println("token[0]: " + tokens[0]);
+        switch(tokens[0]){
+        case "ERROR":
+            decodedMessage = "Error";
+            break;
+        case "OK":
+            decodedMessage = "Ok";
+            break;
+        case "MESSAGE":
+            decodedMessage = tokens[1] + ": " + String.join(" ", tokens[2]);
+            break;
+        case "JOINED":
+            decodedMessage = "Joined";
+            break;
+        case "NEWNICK":
+            decodedMessage = "Newnick";
+            break;
+        case "LEFT":
+            decodedMessage = "Left";
+            break;
+        case "BYE":
+            decodedMessage = "Bye";
+            break;
+        default:
+            decodedMessage = "Undefined";
+            break;
+        }
+        return decodedMessage;
+    }
+
 
     // Método invocado sempre que o utilizador insere uma mensagem
     // na caixa de entrada
@@ -88,9 +121,7 @@ public class ChatClient {
         // PREENCHER AQUI com código que envia a mensagem ao servidor
         outToServer.writeBytes(message + '\n');
         String response = inFromServer.readLine();
-        chatArea.append(response + '\n');
-
-
+        chatArea.append(decodeMessage(response) + '\n');
     }
 
     
