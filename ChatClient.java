@@ -96,16 +96,16 @@ public class ChatClient {
             decodedMessage = tokens[1] + ": " + String.join(" ", tokens[2]);
             break;
         case "JOINED":
-            decodedMessage = "Joined";
+            decodedMessage = "The user " + tokens[1] + " has joined the room";
             break;
         case "NEWNICK":
-            decodedMessage = "Newnick";
+            decodedMessage = tokens[1] + " -> " + tokens[2];
             break;
         case "LEFT":
-            decodedMessage = "Left";
+            decodedMessage = "The user " + tokens[1] + " has left the room";
             break;
         case "BYE":
-            decodedMessage = "Bye";
+            decodedMessage = "Bye!";
             break;
         default:
             decodedMessage = "Undefined";
