@@ -6,8 +6,8 @@ import java.awt.*;
 import java.awt.event.*;
 import javax.swing.*;
 
-// TODO: handle server error messages (make them more clear)
-// ISSUE: only prints penultimate message
+// TODO: handle server error messages (make them more clear) (requires handling of state)
+// ISSUE: only prints penultimate message (related to threading)
 // TODO: threading
 // TODO: ttf fonts
 
