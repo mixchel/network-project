@@ -66,8 +66,6 @@ public class ChatClient {
         });
 
         // Connect to server and generate buffers
-        BufferedReader inFromUser =
-            new BufferedReader(new InputStreamReader(System.in)); //necessário?
         System.out.println("DEBUG: Attempting to connect to " + domain + ":" + port);
         Socket clientSocket = new Socket(domain, port);
         System.out.println("DEBUG: Connected to " + domain + ":" + port);
