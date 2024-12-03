@@ -172,9 +172,15 @@ public class ChatServer {
 
     static void processMessage(SelectionKey senderKey, String message) throws IOException {
         User user = (User) senderKey.attachment();
-        if (isCommand(message)) {
-            processCommand(message, user);
-        } else if (user.isInside()) {
+        if (message.length() > 2 && message.charAt(0) == '/') {
+            if (message.charAt(1) == '/'){
+                message = message.substring(1, message.length()); //Removes escape character
+            } else {
+                processCommand(message, user);
+                return;
+            }
+        }
+        if (user.isInside()) {
             user.SendMessageFromUser("MESSAGE " + user.getName() + " " + message);
         } else {
             user.sendMessageToUser("ERROR");
@@ -202,10 +208,6 @@ public class ChatServer {
         newline.rewind();
     }
 
-    static private boolean isCommand(String input) {
-        return (input.length() > 2 && input.charAt(0) == '/' && input.charAt(1) != '/');
-    }
-
     static private void processCommand(String message, User user) throws IOException {
         String[] command = message.split(" ");
         switch (command[0]) {
@@ -221,6 +223,8 @@ public class ChatServer {
                     user.setName(command[1]);
                     userMap.put(user.getName(), user.getKey());
                     user.sendMessageToUser("OK");
+                } else {
+                    user.sendMessageToUser("ERROR");
                 }
                 break;
             case "/join":
@@ -346,12 +350,9 @@ class User {
 
     public void SendMessageFromUser(ByteBuffer messageBuf) throws IOException {
         for (User u : this.currrentChat.getUsers()) {
-            if (u != this) {
-                if (u.getKey().isWritable())
-                    ChatServer.sendMessage(messageBuf, u.getKey());
-                else
-                    System.err.println("A user in chat can`t receive messages");
-            }
+            if (u.getKey().isWritable())
+                ChatServer.sendMessage(messageBuf, u.getKey());
+                System.err.println("A user in chat can`t receive messages");
         }
     }
 
