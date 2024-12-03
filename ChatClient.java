@@ -5,7 +5,7 @@ import java.awt.*;
 import java.awt.event.*;
 import javax.swing.*;
 
-// TODO: report error if it can't connect to a server and quit
+// TODO: handle server error messages (make them more clear)
 // ISSUE: only prints penultimate message
 // TODO: threading
 // TODO: ttf fonts
