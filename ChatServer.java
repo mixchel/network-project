@@ -112,6 +112,7 @@ public class ChatServer {
                                 try {
                                     s = socketChannel.socket();
                                     System.out.println("Closing connection to " + s);
+                                    // ISSUE: doesn't release bound nicknames
                                     s.close();
                                 } catch (IOException ie) {
                                     System.err.println("Error closing socket " + s + ": " + ie);
