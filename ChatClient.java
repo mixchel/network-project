@@ -95,7 +95,7 @@ public class ChatClient {
             decodedMessage = "The user " + tokens.get(1) + " has joined the room";
             break;
         case "NEWNICK":
-            decodedMessage = tokens.get(1) + " -> " + tokens.get(2);
+            decodedMessage = tokens.get(1) + " mudou de nome para " + tokens.get(2);
             break;
         case "LEFT":
             decodedMessage = "The user " + tokens.get(1) + " has left the room";
