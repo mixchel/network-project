@@ -348,7 +348,6 @@ class User {
         for (User u : this.currrentChat.getUsers()) {
             if (u.getKey().isWritable())
                 ChatServer.sendMessage(messageBuf, u.getKey());
-                System.err.println("A user in chat can`t receive messages");
         }
     }
 
