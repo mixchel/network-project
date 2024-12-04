@@ -111,21 +111,21 @@ public class ChatClient {
         return decodedMessage;
     }
 
+    public void recieveMessage() throws IOException{
+        String response = inFromServer.readLine();
+        chatArea.append(decodeMessage(response) + '\n');
+    }
 
     // Método invocado sempre que o utilizador insere uma mensagem
     // na caixa de entrada
     public void newMessage(String message) throws IOException {
         outToServer.writeBytes(message + '\n');
-        String response = inFromServer.readLine();
-        chatArea.append(decodeMessage(response) + '\n');
+        recieveMessage();
     }
 
     
     // Método principal do objecto
     public void run() throws IOException {
-        // PREENCHER AQUI
-        
-
 
     }
     
