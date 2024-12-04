@@ -8,7 +8,7 @@ import javax.swing.*;
 
 // TODO: handle server error messages (make them more clear) (requires handling of state)
 // ISSUE: only prints penultimate message (related to threading)
-// TODO: threading
+// TODO: threading (I'm utterly clueless on this one)
 // TODO: ttf fonts
 
 public class ChatClient {
