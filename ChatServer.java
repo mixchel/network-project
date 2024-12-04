@@ -191,12 +191,7 @@ public class ChatServer {
     }
 
     static public void sendMessage(String message, SelectionKey receiverKey) throws IOException {
-        ByteBuffer messageBuf = encoder.encode(CharBuffer.wrap(message.toCharArray())); // Turns
-                                                                                        // message
-                                                                                        // from
-                                                                                        // string to
-                                                                                        // byte
-                                                                                        // buffer
+        ByteBuffer messageBuf = encoder.encode(CharBuffer.wrap(message.toCharArray())); //Turns message from stringto byte buffer
         sendMessage(messageBuf, receiverKey);
     }
 
