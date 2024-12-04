@@ -12,7 +12,7 @@ public class ChatServer {
     static private final ByteBuffer buffer = ByteBuffer.allocate(16384);
 
     // A buffer containing a newline character
-    static private final ByteBuffer newline = ByteBuffer.allocate(1).put((byte) 0x0A).flip();
+    static private final ByteBuffer newline = ByteBuffer.allocate(1);
 
     // Decoder for incoming text -- assume UTF-8
     static private final Charset charset = Charset.forName("UTF8");
@@ -24,6 +24,7 @@ public class ChatServer {
     static public Map<String, SelectionKey> userMap = new HashMap<>();
 
     static public void main(String args[]) {
+        newline.put((byte) 0x0A).flip();
         int port;
         try {
             port = Integer.parseInt(args[0]);
