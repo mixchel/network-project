@@ -190,9 +190,8 @@ public class ChatServer {
 
     }
 
-    static public void sendMessage(String message, SelectionKey receiverKey) throws IOException {
-        ByteBuffer messageBuf = encoder.encode(CharBuffer.wrap(message.toCharArray())); //Turns message from string to byte buffer
-        sendMessage(messageBuf, receiverKey);
+    static public ByteBuffer encodeMessage(String message) throws IOException {
+        return encoder.encode(CharBuffer.wrap(message.toCharArray()));
     }
 
     static public void sendMessage(ByteBuffer messageBuf, SelectionKey receiverKey)
@@ -268,7 +267,7 @@ public class ChatServer {
                     SelectionKey receiverKey = userMap.get(command[1]);
                     String privateMessage = String.join(" ", Arrays.copyOfRange(command, 2, command.length));
                     user.sendMessageToUser("OK");
-                    sendMessage("PRIVATE " + user.getName() + " " + privateMessage, receiverKey);
+                    sendMessage(encodeMessage("PRIVATE " + user.getName() + " " + privateMessage), receiverKey);
                 }
                 break;
             default:
@@ -366,7 +365,7 @@ class User {
 
 
 class Chat {
-    private static Map<String, Chat> chatDict = new Hashtable<>();
+    private static Map<String, Chat> chatDict = new Hashtable<>(); // TODO:não vai haver problemas deste ser privado, a informação dos users pertencentes a uum chat não tem de estar disponivel fora desse chat???
     private String name;
     private List<User> userMap;
 
