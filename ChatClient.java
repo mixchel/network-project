@@ -32,7 +32,6 @@ public class ChatClient {
         chatArea.append(message);
     }
 
-    
     // Construtor
     public ChatClient(String server, int port) throws IOException {
 
