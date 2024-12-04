@@ -212,12 +212,12 @@ public class ChatServer {
                     break;
                 }
                 if (isNameAvailable(command[1])) {
+                    user.sendMessageToUser("OK");
                     if (user.isInside())
                         user.SendMessageFromUser("NEWNICK " + user.getName() + " " + command[1]);
-                        userMap.remove(user.getName());
+                    userMap.remove(user.getName());
                     user.setName(command[1]);
                     userMap.put(user.getName(), user.getKey());
-                    user.sendMessageToUser("OK");
                 } else {
                     user.sendMessageToUser("ERROR");
                 }
@@ -230,6 +230,7 @@ public class ChatServer {
                 if (user.isInit()) {
                     user.sendMessageToUser("ERROR");
                 } else {
+                    user.sendMessageToUser("OK");
                     if (user.isInside()) {
                         user.SendMessageFromUser("LEFT " + user.getName());
                     }
@@ -239,7 +240,6 @@ public class ChatServer {
                     }
                     user.setCurrrentChat(newChat);
                     user.SendMessageFromUser("JOINED " + user.getName());
-                    user.sendMessageToUser("OK");
                 }
                 break;
             case "/leave":
@@ -251,19 +251,20 @@ public class ChatServer {
                     user.sendMessageToUser("ERROR");
                 break;
             case "/bye":
+                user.sendMessageToUser("BYE");
                 if (user.isInside()) {
                     user.SendMessageFromUser("LEFT " + user.getName());
                     user.setCurrrentChat(null);
                 }
-                user.sendMessageToUser("BYE");
                 occupiedNames.remove(user.getName());
                 user.getKey().channel().close();
                 user.getKey().cancel();
                 break;
             case "/priv":
                 if (user.isInit() ||command.length < 3 || !userMap.containsKey(command[1])){ //If sender has no name (isInit), command doesn't contain messages or there is no user with receiver name ERROR
+                    System.out.println(userMap.containsKey(command[1]));
                     user.sendMessageToUser("ERROR");
-                } else{
+                } else {
                     SelectionKey receiverKey = userMap.get(command[1]);
                     String privateMessage = String.join(" ", Arrays.copyOfRange(command, 2, command.length));
                     user.sendMessageToUser("OK");
