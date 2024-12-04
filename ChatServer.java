@@ -215,6 +215,7 @@ public class ChatServer {
                     user.sendMessageToUser("OK");
                     if (user.isInside())
                         user.SendMessageFromUser("NEWNICK " + user.getName() + " " + command[1]);
+                    occupiedNames.remove(user.getName());
                     userMap.remove(user.getName());
                     user.setName(command[1]);
                     userMap.put(user.getName(), user.getKey());
