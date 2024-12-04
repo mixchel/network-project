@@ -283,7 +283,7 @@ class User {
     private String name;
     private Chat currrentChat;
     private SelectionKey key;
-    private String unfinishedMessage;
+    private String unfinishedMessage = "";
 
     public String getUnfinishedMessage() {
         return unfinishedMessage;
@@ -294,10 +294,7 @@ class User {
     }
 
     User(SelectionKey key) {
-        this.name = null;
         this.key = key;
-        this.unfinishedMessage = "";
-        currrentChat = null;
     }
 
     public boolean isInit() {
