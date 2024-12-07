@@ -6,6 +6,7 @@ import java.awt.*;
 import java.awt.event.*;
 import javax.swing.*;
 
+// IMPORTANT: Requires 2 threads, 1 for recieving messages and another for everything else (interface, sending, etc...)
 // TODO: handle server error messages (make them more clear) (requires handling of state)
 // ISSUE: only prints penultimate message (related to threading)
 // TODO: threading (I'm utterly clueless on this one)
