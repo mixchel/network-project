@@ -259,12 +259,12 @@ public class ChatServer {
                     user.setCurrrentChat(null);
                 }
                 occupiedNames.remove(user.getName());
-                user.getKey().channel().close();
+                SocketChannel sc = (SocketChannel) user.getKey().channel();
+                System.out.println("Closed " + sc);
                 user.getKey().cancel();
                 break;
             case "/priv":
                 if (user.isInit() ||command.length < 3 || !userMap.containsKey(command[1])){ //If sender has no name (isInit), command doesn't contain messages or there is no user with receiver name ERROR
-                    System.out.println(userMap.containsKey(command[1]));
                     user.sendMessageToUser("ERROR");
                 } else {
                     SelectionKey receiverKey = userMap.get(command[1]);
