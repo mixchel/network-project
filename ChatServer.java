@@ -215,7 +215,7 @@ public class ChatServer {
                 if (isNameAvailable(command[1])) {
                     user.sendMessageToUser("OK");
                     if (user.isInside())
-                        user.SendMessageFromUser("NEWNICK " + user.getName() + " " + command[1]);
+                        user.announceToChat("NEWNICK " + user.getName() + " " + command[1]);
                     occupiedNames.remove(user.getName());
                     userMap.remove(user.getName());
                     user.setName(command[1]);
@@ -234,19 +234,19 @@ public class ChatServer {
                 } else {
                     user.sendMessageToUser("OK");
                     if (user.isInside()) {
-                        user.SendMessageFromUser("LEFT " + user.getName());
+                        user.announceToChat("LEFT " + user.getName());
                     }
                     Chat newChat = Chat.getChat(command[1]);
                     if (newChat == null) {
                         newChat = new Chat(command[1]);
                     }
                     user.setCurrrentChat(newChat);
-                    user.SendMessageFromUser("JOINED " + user.getName());
+                    user.announceToChat("JOINED " + user.getName());
                 }
                 break;
             case "/leave":
                 if (user.isInside()) {
-                    user.SendMessageFromUser("LEFT " + user.getName());
+                    user.announceToChat("LEFT " + user.getName());
                     user.setCurrrentChat(null);
                     user.sendMessageToUser("OK");
                 } else
@@ -255,7 +255,7 @@ public class ChatServer {
             case "/bye":
                 user.sendMessageToUser("BYE");
                 if (user.isInside()) {
-                    user.SendMessageFromUser("LEFT " + user.getName());
+                    user.announceToChat("LEFT " + user.getName());
                     user.setCurrrentChat(null);
                 }
                 occupiedNames.remove(user.getName());
@@ -344,31 +344,62 @@ class User {
             currrentChat.addUser(this);
     }
 
-    public void SendMessageFromUser(ByteBuffer messageBuf) throws IOException {
+    private void SendMessageFromUser(ByteBuffer messageBuf) throws IOException {
         for (User u : this.currrentChat.getUsers()) {
             if (u.getKey().isWritable())
                 ChatServer.sendMessage(messageBuf, u.getKey());
         }
     }
-
+    /**
+     * Sends a message to all members of the user's current chat, including to the user himself,
+     * supposed to be used when a message is being sent by the user
+     * @param message
+     * @throws IOException
+     * 
+     * 
+     */
     public void SendMessageFromUser(String message) throws IOException {
         ByteBuffer messageBuf = ChatServer.encoder.encode(CharBuffer.wrap(message.toCharArray()));
         SendMessageFromUser(messageBuf);
     }
-
+    /**
+     * Sends a message only to the user himself, used for OK ERROR and other confirmations
+     * @param message
+     * @throws IOException
+     */
     public void sendMessageToUser(String message) throws IOException {
         ByteBuffer messageBuf = ChatServer.encoder.encode(CharBuffer.wrap(message.toCharArray()));
         sendMessageToUser(messageBuf);
     }
 
-    public void sendMessageToUser(ByteBuffer messageBuf) throws IOException {
+    private void sendMessageToUser(ByteBuffer messageBuf) throws IOException {
         ChatServer.sendMessage(messageBuf, this.getKey());
     }
+    /**
+     * Send message to all members off a User's chat except the user himself, used for NEWNICK, LEFT and JOIN 
+     * @param message
+     * @throws IOException
+     */
+    public void announceToChat(String message) throws IOException {
+        ByteBuffer messageBuf = ChatServer.encoder.encode(CharBuffer.wrap(message.toCharArray()));
+        announceToChat(messageBuf);
+    }
+    private void announceToChat(ByteBuffer messageBuf)throws IOException{
+        for (User u : this.currrentChat.getUsers()) {
+            if (u != this) {
+                if (u.getKey().isWritable())
+                    ChatServer.sendMessage(messageBuf, u.getKey());
+                else
+                    System.err.println("A user in chat can`t receive messages");
+            }
+        }
+    }
+
 }
 
 
 class Chat {
-    private static Map<String, Chat> chatDict = new Hashtable<>(); // TODO:não vai haver problemas deste ser privado, a informação dos users pertencentes a uum chat não tem de estar disponivel fora desse chat???
+    private static Map<String, Chat> chatDict = new Hashtable<>();
     private String name;
     private List<User> userMap;
 
