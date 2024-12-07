@@ -207,6 +207,7 @@ public class ChatServer {
     static private void processCommand(String message, User user) throws IOException {
         String[] command = message.split(" ");
         switch (command[0]) {
+            // Changing name, format of command /nick {newname}
             case "/nick":
                 if (command.length != 2) {
                     user.sendMessageToUser("ERROR");
@@ -224,6 +225,8 @@ public class ChatServer {
                     user.sendMessageToUser("ERROR");
                 }
                 break;
+
+            // Joining chat, format of command /join {chatname}    
             case "/join":
                 if (command.length != 2) {
                     user.sendMessageToUser("ERROR");
@@ -244,6 +247,8 @@ public class ChatServer {
                     user.announceToChat("JOINED " + user.getName());
                 }
                 break;
+
+            // Leaving chat, format of command: /leave    
             case "/leave":
                 if (user.isInside()) {
                     user.announceToChat("LEFT " + user.getName());
@@ -263,6 +268,8 @@ public class ChatServer {
                 System.out.println("Closed " + sc);
                 user.getKey().cancel();
                 break;
+
+            //Sending private message, format of command /priv {recient} {message}    
             case "/priv":
                 if (user.isInit() ||command.length < 3 || !userMap.containsKey(command[1])){ //If sender has no name (isInit), command doesn't contain messages or there is no user with receiver name ERROR
                     user.sendMessageToUser("ERROR");
@@ -273,6 +280,7 @@ public class ChatServer {
                     sendMessage(encodeMessage("PRIVATE " + user.getName() + " " + privateMessage), receiverKey);
                 }
                 break;
+
             default:
                 user.sendMessageToUser("ERROR");
                 break;
