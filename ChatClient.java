@@ -7,8 +7,6 @@ import javax.swing.*;
 
 // TODO: selecting a nickname outside a room just responds with a OK
 // TODO: joining a room just responds with a OK
-// NICE TO HAVES: 
-// -quando o usuario manda mensagem trocar o nome dele por you.
 
 public class ChatClient {
 
@@ -23,6 +21,7 @@ public class ChatClient {
     Socket clientSocket;
     String lastMessage = "";
     String currentRoom = "";
+    String currentNick = "";
 
     // Buffers/Streams
     DataOutputStream outToServer;
@@ -95,7 +94,11 @@ public class ChatClient {
             decodedMessage = "Ok";
             break;
         case "MESSAGE":
-            decodedMessage = "[" + currentRoom + "] " + tokens.get(1) + ": " + String.join(" ", tokens.subList(2, tokens.size()));
+            if(tokens.get(1).equals(currentNick)){
+                decodedMessage = "[" + currentRoom + "] " + "You" + ": " + String.join(" ", tokens.subList(2, tokens.size()));
+            } else {
+                decodedMessage = "[" + currentRoom + "] " + tokens.get(1) + ": " + String.join(" ", tokens.subList(2, tokens.size()));
+            }
             break;
         case "JOINED":
             decodedMessage = "The user " + tokens.get(1) + " has joined the room";
@@ -142,6 +145,9 @@ public class ChatClient {
             if(lastMessage.split(" ")[0].equals("/join")){
                 setCurrentRoom(lastMessage.split(" ")[1]);
             }
+            if(lastMessage.split(" ")[0].equals("/nick")){
+                setCurrentNick(lastMessage.split(" ")[1]);
+            }
         }
         chatArea.append(decodeMessage(response) + '\n');
     }
@@ -151,6 +157,10 @@ public class ChatClient {
         System.out.println("Set currentRoom to:" + room);
     }
 
+    public void setCurrentNick(String nick){
+        this.currentNick = nick;
+        System.out.println("Set currentNick to:" + nick);
+    }
 
     public void setLastMessage(String message){
         this.lastMessage = message;
