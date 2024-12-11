@@ -106,17 +106,9 @@ public class ChatServer {
                             // and close it
                             socketChannel = (SocketChannel) key.channel();
                             if (messages == null) {
-                                key.cancel();
-
+                                User user = (User) key.attachment();
                                 Socket s = null;
-                                try {
-                                    s = socketChannel.socket();
-                                    System.out.println("Closing connection to " + s);
-                                    // ISSUE: doesn't release bound nicknames
-                                    s.close();
-                                } catch (IOException ie) {
-                                    System.err.println("Error closing socket " + s + ": " + ie);
-                                }
+                                deleteUser(user);
                             } else {
                                 for (String message : messages) {
                                     processMessage(key, message);
@@ -259,14 +251,7 @@ public class ChatServer {
                 break;
             case "/bye":
                 user.sendMessageToUser("BYE");
-                if (user.isInside()) {
-                    user.announceToChat("LEFT " + user.getName());
-                    user.setCurrrentChat(null);
-                }
-                occupiedNames.remove(user.getName());
-                SocketChannel sc = (SocketChannel) user.getKey().channel();
-                System.out.println("Closed " + sc);
-                user.getKey().cancel();
+                deleteUser(user);
                 break;
 
             //Sending private message, format of command /priv {recient} {message}    
@@ -284,6 +269,23 @@ public class ChatServer {
             default:
                 user.sendMessageToUser("ERROR");
                 break;
+        }
+    }
+    static private void deleteUser(User user) throws IOException{
+        SocketChannel sc = (SocketChannel) user.getKey().channel();
+        Socket s = sc.socket();
+        try {
+            if (user.isInside()) {
+                user.announceToChat("LEFT " + user.getName());
+                user.setCurrrentChat(null);
+            }
+            occupiedNames.remove(user.getName());
+            System.out.println("Closing connection to " + s);
+            sc.close();
+            System.out.println("Closed " + sc);
+            user.getKey().cancel();
+        } catch (IOException ie) {
+            System.err.println("Error closing socket " + s + ": " + ie);
         }
     }
 }
