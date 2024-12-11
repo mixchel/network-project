@@ -5,11 +5,8 @@ import java.awt.*;
 import java.awt.event.*;
 import javax.swing.*;
 
-// TODO: handle server error messages (make them more clear) (requires handling of state) 
-// TODO: ttf fonts
-// NICE TO HAVES: 
-// -indicador de qual Chat estamos atualmente
-// -quando o usuario manda mensagem trocar o nome dele por you.
+// TODO: selecting a nickname outside a room just responds with a OK
+// TODO: joining a room just responds with a OK
 
 public class ChatClient {
 
@@ -22,6 +19,9 @@ public class ChatClient {
     String domain;
     int port;
     Socket clientSocket;
+    String lastMessage = "";
+    String currentRoom = "";
+    String currentNick = "";
 
     // Buffers/Streams
     DataOutputStream outToServer;
@@ -94,7 +94,11 @@ public class ChatClient {
             decodedMessage = "Ok";
             break;
         case "MESSAGE":
-            decodedMessage = tokens.get(1) + ": " + String.join(" ", tokens.subList(2, tokens.size()));
+            if(tokens.get(1).equals(currentNick)){
+                decodedMessage = "[" + currentRoom + "] " + "You" + ": " + String.join(" ", tokens.subList(2, tokens.size()));
+            } else {
+                decodedMessage = "[" + currentRoom + "] " + tokens.get(1) + ": " + String.join(" ", tokens.subList(2, tokens.size()));
+            }
             break;
         case "JOINED":
             decodedMessage = "The user " + tokens.get(1) + " has joined the room";
@@ -115,15 +119,59 @@ public class ChatClient {
         return decodedMessage;
     }
 
+    public boolean isCommand(String message){
+        if(message.length() > 1 && message.charAt(0) == '/' && message.charAt(1) != '/'){
+            return true;
+        }
+        return false;
+    }
+
+    // TODO: complains you need to join a room to send a message, if you happen to send one while on the INIT state... I mean, it is right, but perhaps it should inform the user of the fact he hasn't chosen a nickname
     public void receiveMessage() throws IOException{
         String response = inFromServer.readLine();
+        if(response.equals("ERROR")){
+            if(lastMessage.split(" ")[0].equals("/nick")){
+                printMessage("Error: Nick already in use.\n");
+                return;
+            }
+            if(!isCommand(lastMessage)){
+                printMessage("Error: You need to join a room to be send messages.\n");
+                return;
+            }
+            printMessage("Error: Invalid command.\n");
+            return;
+        }
+        if(response.equals("OK")){
+            if(lastMessage.split(" ")[0].equals("/join")){
+                setCurrentRoom(lastMessage.split(" ")[1]);
+            }
+            if(lastMessage.split(" ")[0].equals("/nick")){
+                setCurrentNick(lastMessage.split(" ")[1]);
+            }
+        }
         chatArea.append(decodeMessage(response) + '\n');
     }
 
+    public void setCurrentRoom(String room){
+        this.currentRoom = room;
+        System.out.println("Set currentRoom to:" + room);
+    }
+
+    public void setCurrentNick(String nick){
+        this.currentNick = nick;
+        System.out.println("Set currentNick to:" + nick);
+    }
+
+    public void setLastMessage(String message){
+        this.lastMessage = message;
+        System.out.println("Set lastMessage to:" + message);
+    }
+    
     // Método invocado sempre que o utilizador insere uma mensagem
     // na caixa de entrada
     public void newMessage(String message) throws IOException {
         outToServer.writeBytes(message + '\n');
+        setLastMessage(message);
     }
 
     public void stopClient(){
