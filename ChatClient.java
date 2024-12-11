@@ -5,7 +5,8 @@ import java.awt.*;
 import java.awt.event.*;
 import javax.swing.*;
 
-// TODO: handle server error messages (make them more clear) (requires handling of state) 
+// TODO: selecting a nickname outside a room just responds with a OK
+// TODO: joining a room just responds with a OK
 // TODO: ttf fonts
 // NICE TO HAVES: 
 // -indicador de qual Chat estamos atualmente
@@ -22,6 +23,7 @@ public class ChatClient {
     String domain;
     int port;
     Socket clientSocket;
+    String lastMessage = "";
 
     // Buffers/Streams
     DataOutputStream outToServer;
@@ -115,15 +117,41 @@ public class ChatClient {
         return decodedMessage;
     }
 
+    public boolean isCommand(String message){
+        if(message.length() > 1 && message.charAt(0) == '/' && message.charAt(1) != '/'){
+            return true;
+        }
+        return false;
+    }
+
+    // TODO: complains you need to join a room to send a message, if you happen to send one while on the INIT state... I mean, it is right, but perhaps it should inform the user of the fact he hasn't chosen a nickname
     public void receiveMessage() throws IOException{
         String response = inFromServer.readLine();
+        if(response.equals("ERROR")){
+            if(lastMessage.split(" ")[0].equals("/nick")){
+                printMessage("Error: Nick already in use.\n");
+                return;
+            }
+            if(!isCommand(lastMessage)){
+                printMessage("Error: You need to join a room to be send messages.\n");
+                return;
+            }
+            printMessage("Error: Invalid command.\n");
+            return;
+        }
         chatArea.append(decodeMessage(response) + '\n');
     }
 
+    public void setLastMessage(String message){
+        this.lastMessage = message;
+        System.out.println("Set lastMessage to:" + message);
+    }
+    
     // Método invocado sempre que o utilizador insere uma mensagem
     // na caixa de entrada
     public void newMessage(String message) throws IOException {
         outToServer.writeBytes(message + '\n');
+        setLastMessage(message);
     }
 
     public void stopClient(){
