@@ -7,9 +7,7 @@ import javax.swing.*;
 
 // TODO: selecting a nickname outside a room just responds with a OK
 // TODO: joining a room just responds with a OK
-// TODO: ttf fonts
 // NICE TO HAVES: 
-// -indicador de qual Chat estamos atualmente
 // -quando o usuario manda mensagem trocar o nome dele por you.
 
 public class ChatClient {
@@ -24,6 +22,7 @@ public class ChatClient {
     int port;
     Socket clientSocket;
     String lastMessage = "";
+    String currentRoom = "";
 
     // Buffers/Streams
     DataOutputStream outToServer;
@@ -96,7 +95,7 @@ public class ChatClient {
             decodedMessage = "Ok";
             break;
         case "MESSAGE":
-            decodedMessage = tokens.get(1) + ": " + String.join(" ", tokens.subList(2, tokens.size()));
+            decodedMessage = "[" + currentRoom + "] " + tokens.get(1) + ": " + String.join(" ", tokens.subList(2, tokens.size()));
             break;
         case "JOINED":
             decodedMessage = "The user " + tokens.get(1) + " has joined the room";
@@ -139,8 +138,19 @@ public class ChatClient {
             printMessage("Error: Invalid command.\n");
             return;
         }
+        if(response.equals("OK")){
+            if(lastMessage.split(" ")[0].equals("/join")){
+                setCurrentRoom(lastMessage.split(" ")[1]);
+            }
+        }
         chatArea.append(decodeMessage(response) + '\n');
     }
+
+    public void setCurrentRoom(String room){
+        this.currentRoom = room;
+        System.out.println("Set currentRoom to:" + room);
+    }
+
 
     public void setLastMessage(String message){
         this.lastMessage = message;
