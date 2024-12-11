@@ -1,16 +1,15 @@
 import java.io.*;
 import java.net.*;
-import java.util.List;
 import java.util.*;
 import java.awt.*;
 import java.awt.event.*;
 import javax.swing.*;
 
-// IMPORTANT: Requires 2 threads, 1 for recieving messages and another for everything else (interface, sending, etc...)
-// TODO: handle server error messages (make them more clear) (requires handling of state)
-// ISSUE: only prints penultimate message (related to threading)
-// TODO: threading (I'm utterly clueless on this one)
+// TODO: handle server error messages (make them more clear) (requires handling of state) 
 // TODO: ttf fonts
+// NICE TO HAVES: 
+// -indicador de qual Chat estamos atualmente
+// -quando o usuario manda mensagem trocar o nome dele por you.
 
 public class ChatClient {
 
@@ -22,6 +21,7 @@ public class ChatClient {
     // Other
     String domain;
     int port;
+    Socket clientSocket;
 
     // Buffers/Streams
     DataOutputStream outToServer;
@@ -48,6 +48,11 @@ public class ChatClient {
         frame.setVisible(true);
         chatArea.setEditable(false);
         chatBox.setEditable(true);
+
+        //Variable assignments
+        domain = server;
+        this.port = port;
+
         chatBox.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -64,16 +69,15 @@ public class ChatClient {
                 chatBox.requestFocusInWindow();
             }
         });
-
-        // Connect to server and generate buffers
-        System.out.println("DEBUG: Attempting to connect to " + domain + ":" + port);
-        Socket clientSocket = new Socket(domain, port);
-        System.out.println("DEBUG: Connected to " + domain + ":" + port);
-        outToServer =
-         new DataOutputStream(clientSocket.getOutputStream());
-        inFromServer =
-         new BufferedReader(new
-               InputStreamReader(clientSocket.getInputStream()));
+        frame.addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent e) {
+                // Code to be executed when the window is closed
+                System.out.println("Window is closing, trying to close socket gracefully...");
+                stopClient();
+            }
+        });
+        
 
     }
 
@@ -102,7 +106,7 @@ public class ChatClient {
             decodedMessage = "The user " + tokens.get(1) + " has left the room";
             break;
         case "BYE":
-            decodedMessage = "Bye!";
+            stopClient(); //ISSUE - running this here just feels wrong.
             break;
         default:
             decodedMessage = "Undefined";
@@ -111,7 +115,7 @@ public class ChatClient {
         return decodedMessage;
     }
 
-    public void recieveMessage() throws IOException{
+    public void receiveMessage() throws IOException{
         String response = inFromServer.readLine();
         chatArea.append(decodeMessage(response) + '\n');
     }
@@ -120,13 +124,36 @@ public class ChatClient {
     // na caixa de entrada
     public void newMessage(String message) throws IOException {
         outToServer.writeBytes(message + '\n');
-        recieveMessage();
+    }
+
+    public void stopClient(){
+        try{
+            clientSocket.close();
+        } catch (IOException ie){
+            System.out.println("Couldn't close socket properly, exception" + ie);
+        }
+        System.exit(0);  // Terminates the program
     }
 
     
     // Método principal do objecto
     public void run() throws IOException {
-
+        System.out.println("catapimbas");
+        System.out.println("DEBUG: Attempting to connect to " + domain + ":" + port);
+        clientSocket = new Socket(domain, port);
+        System.out.println("DEBUG: Connected to " + domain + ":" + port);
+        outToServer =
+         new DataOutputStream(clientSocket.getOutputStream());
+        inFromServer =
+         new BufferedReader(new
+               InputStreamReader(clientSocket.getInputStream()));
+        while (true) {
+            try{
+                receiveMessage();
+            } catch (IOException e){
+                System.out.println("Couldn't receive message");
+            }
+        }
     }
     
 
@@ -136,13 +163,7 @@ public class ChatClient {
         if(args.length != 2){
             throw new IllegalArgumentException("USAGE: ChatClient HOSTNAME PORT");
         }
-
-        try{
         ChatClient client = new ChatClient(args[0], Integer.parseInt(args[1]));
         client.run();
-        } catch(ConnectException e) {
-            System.out.println("The server " + args[0] + ":" + args[1] + " is currently unreachable");
-            System.exit(1);
-        }
     }
 }
