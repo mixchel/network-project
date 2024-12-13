@@ -4,6 +4,11 @@ import java.util.*;
 import java.awt.*;
 import java.awt.event.*;
 import javax.swing.*;
+import java.nio.*;
+import java.nio.channels.*;
+import java.nio.charset.*;
+import java.util.*;
+import java.util.stream.Collectors;
 
 // TODO: selecting a nickname outside a room just responds with a OK
 // TODO: joining a room just responds with a OK
@@ -27,6 +32,16 @@ public class ChatClient {
     DataOutputStream outToServer;
     BufferedReader inFromServer;
 
+    // Decoder for incoming text -- assume UTF-8
+    static private final Charset charset = Charset.forName("UTF8");
+    static final CharsetDecoder decoder = charset.newDecoder();
+    static final CharsetEncoder encoder = charset.newEncoder();
+
+    // A pre-allocated buffer for the received data
+    static private final ByteBuffer buffer = ByteBuffer.allocate(16384);
+
+    // A buffer containing a newline character
+    static private final ByteBuffer newline = ByteBuffer.allocate(1);
     
     // Send message to history
     public void printMessage(final String message) {
@@ -166,11 +181,17 @@ public class ChatClient {
         this.lastMessage = message;
         System.out.println("Set lastMessage to:" + message);
     }
-    
+
+    static public ByteBuffer encodeMessage(String message) throws IOException {
+        System.out.println("encoding!!!");
+        return encoder.encode(CharBuffer.wrap(message.toCharArray()));
+    }
+ 
     // Método invocado sempre que o utilizador insere uma mensagem
     // na caixa de entrada
     public void newMessage(String message) throws IOException {
-        outToServer.writeBytes(message + '\n');
+        WritableByteChannel channel = Channels.newChannel(outToServer);
+        channel.write(encodeMessage(message + '\n'));
         setLastMessage(message);
     }
 
@@ -180,7 +201,7 @@ public class ChatClient {
         } catch (IOException ie){
             System.out.println("Couldn't close socket properly, exception" + ie);
         }
-        System.exit(0);  // Terminates the program
+        System.exit(0);
     }
 
     
@@ -191,7 +212,7 @@ public class ChatClient {
         clientSocket = new Socket(domain, port);
         System.out.println("DEBUG: Connected to " + domain + ":" + port);
         outToServer =
-         new DataOutputStream(clientSocket.getOutputStream());
+          new DataOutputStream(clientSocket.getOutputStream());
         inFromServer =
          new BufferedReader(new
                InputStreamReader(clientSocket.getInputStream()));
@@ -208,6 +229,7 @@ public class ChatClient {
     // Instancia o ChatClient e arranca-o invocando o seu método run()
     // * NÃO MODIFICAR * ISSUE: Frik, I modified it...
     public static void main(String[] args) throws IOException {
+        newline.put((byte) 0x0A).flip();
         if(args.length != 2){
             throw new IllegalArgumentException("USAGE: ChatClient HOSTNAME PORT");
         }
