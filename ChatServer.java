@@ -104,7 +104,6 @@ public class ChatServer {
 
                             // If the connection is dead, remove it from the selector
                             // and close it
-                            socketChannel = (SocketChannel) key.channel();
                             if (messages == null) {
                                 User user = (User) key.attachment();
                                 Socket s = null;
@@ -119,7 +118,7 @@ public class ChatServer {
 
                             // On exception, remove this channel from the selector
                             key.cancel();
-
+                            socketChannel = (SocketChannel) key.channel();
                             try {
                                 socketChannel.close();
                             } catch (IOException ie2) {
