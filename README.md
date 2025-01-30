@@ -25,7 +25,7 @@ To use the server compile it with ``javac`` then run it with the command:
 ```
 java ChatServer {port}
 ```
-To use the client it with ``javac`` then run it with the command:
+To use the client compile it with ``javac`` then run it with the command:
 ```
 java ChatClient {server address} {server port}
 ```
